@@ -84,4 +84,4 @@ external files are resolved.
 
 ## See also
 
-[https://gist.github.com/okurka12/165d8562c86f08b2a129eaf85c28c79d](GitHub Gist: IPv6 Wireguard server config, with instructions)
+[GitHub Gist: IPv6 Wireguard server config, with instructions](https://gist.github.com/okurka12/165d8562c86f08b2a129eaf85c28c79d)
