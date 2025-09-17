@@ -1,9 +1,11 @@
 #
+# Scans server config file and appends a new peer
+#
 # only works if all the keys are in the file
 # that is, external file locations aren't resolved
 #
 import os
-from subprocess import check_output
+from subprocess import check_output, CalledProcessError
 import ipaddress
 
 IFNAME = "wg0"
@@ -107,6 +109,25 @@ def scan(filename: str) -> list[Peer]:
     return peers
 
 
+def get_server_public_key(filename: str) -> str:
+    with open(filename, "r") as f:
+        lines = f.readlines()
+
+    for line in lines:
+        if line.strip().lower().startswith("privatekey"):
+            privkey = line.split("=", 1)[1].strip()
+            break
+
+    try:
+        return check_output(
+            f"echo {privkey} | wg pubkey", shell=True
+        ).decode()
+    except CalledProcessError:
+        raise RuntimeError(
+            f"error parsing line {line}"
+        )
+
+
 def test_functions ():
     print(ipv4_to_number("194.182.84.172"))
     print(ipv6_to_number("fe80::f816:3eff:fe8a:3430"))
@@ -120,6 +141,16 @@ def test_functions ():
 
 
 def main():
+
+    if check_output("whoami") != b"root\n":
+        print("pls run as root")
+        # exit()
+
+    try:
+        check_output("wg help", shell=True)
+    except CalledProcessError:
+        raise RuntimeError("wireguard doesn't seem to be installed")
+
     filename = ""
     if os.path.isfile(DEFAULT_CONF):
         filename = DEFAULT_CONF
@@ -128,6 +159,7 @@ def main():
         filename = input("specify config path: ")
 
     print(scan(filename))
+    print(get_server_public_key(filename))
 
 
 if __name__ == "__main__":
