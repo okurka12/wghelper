@@ -126,12 +126,18 @@ def get_server_public_key(filename: str) -> str:
     try:
         return check_output(
             f"echo {privkey} | wg pubkey", shell=True
-        ).decode()
+        ).decode().strip()
     except CalledProcessError:
         raise RuntimeError(
             f"error parsing line {line}"
         )
 
+def get_server_port(filename: str) -> int:
+    with open(filename, "r") as f:
+        lines = f.readlines()
+    for line in lines:
+        if line.strip().lower().startswith("listenport"):
+            return(int(line.split("=")[1].strip()))
 
 def next_ipv4(peers: list[Peer]) -> str:
     ips = [ipv4_to_number(peer.ipv4) for peer in peers]
@@ -184,6 +190,7 @@ def main():
 
     print(scan(filename))
     print(get_server_public_key(filename))
+    print(get_server_port(filename))
     print()
     print(next_ipv4(scan(filename)))
     print(next_ipv6(scan(filename)))
