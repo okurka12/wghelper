@@ -171,7 +171,7 @@ def main():
 
     if check_output("whoami") != b"root\n":
         print("pls run as root")
-        # exit()
+        exit()
 
     try:
         check_output("wg help", shell=True)
