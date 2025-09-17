@@ -1,6 +1,12 @@
+#
+# only works if all the keys are in the file
+# that is, external file locations aren't resolved
+#
 import os
 from subprocess import check_output
 import ipaddress
+
+IFNAME = "wg0"
 
 DEFAULT_CONF = "example.conf"
 
@@ -85,12 +91,44 @@ class Peer:
         return f"Peer: {self.ipv4} {self.ipv6}"
 
 
-print(ipv4_to_number("194.182.84.172"))
-print(ipv6_to_number("fe80::f816:3eff:fe8a:3430"))
-print(ipv6_to_number("fe80::"))
-print(ipv6_to_number("::"))
-print(ipv6_to_number("::ff"))
+def scan(filename: str) -> list[Peer]:
+    with open(filename, "r") as f:
+        lines = f.readlines()
 
-print(Peer("AllowedIPs = 10.0.0.2/32"))
-print(Peer("AllowedIPs = 10.0.0.2/32, fd00::2/128"))
-print(Peer("Address = 10.0.0.1/24, fd00::1/64"))
+    peers = []
+
+    for line in lines:
+        if any((
+            line.strip().lower().startswith("allowedips"),
+            line.strip().lower().startswith("address")
+        )):
+            peers.append(Peer(line))
+
+    return peers
+
+
+def test_functions ():
+    print(ipv4_to_number("194.182.84.172"))
+    print(ipv6_to_number("fe80::f816:3eff:fe8a:3430"))
+    print(ipv6_to_number("fe80::"))
+    print(ipv6_to_number("::"))
+    print(ipv6_to_number("::ff"))
+
+    print(Peer("AllowedIPs = 10.0.0.2/32"))
+    print(Peer("AllowedIPs = 10.0.0.2/32, fd00::2/128"))
+    print(Peer("Address = 10.0.0.1/24, fd00::1/64"))
+
+
+def main():
+    filename = ""
+    if os.path.isfile(DEFAULT_CONF):
+        filename = DEFAULT_CONF
+    else:
+        print(f"{DEFAULT_CONF} doesn't exist/isn't a file")
+        filename = input("specify config path: ")
+
+    print(scan(filename))
+
+
+if __name__ == "__main__":
+    main()
