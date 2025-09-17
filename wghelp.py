@@ -11,7 +11,7 @@ from datetime import datetime
 
 IFNAME = "wg0"
 
-DEFAULT_CONF = "example.conf"
+DEFAULT_CONF = f"/etc/wireguard/{IFNAME}.conf"
 
 PEER_CONF_DIR = "peers"
 
@@ -188,12 +188,63 @@ def main():
         print(f"{DEFAULT_CONF} doesn't exist/isn't a file")
         filename = input("specify config path: ")
 
-    print(scan(filename))
-    print(get_server_public_key(filename))
-    print(get_server_port(filename))
-    print()
-    print(next_ipv4(scan(filename)))
-    print(next_ipv6(scan(filename)))
+    print(f"editing {filename}")
+
+    other_peers = scan(filename)
+
+    server_address = check_output(
+        "ip route get 8.8.8.8 | head -1 | cut -d' ' -f7", shell=True
+    ).decode().strip()
+    server_pubkey = get_server_public_key(filename)
+    server_port = get_server_port(filename)
+
+    peer_privkey = check_output("wg genkey", shell=True).decode().strip()
+    peer_pubkey = check_output(
+        f"echo {peer_privkey} | wg pubkey", shell=True
+    ).decode().strip()
+    peer_psk = check_output("wg genpsk", shell=True).decode().strip()
+    peer_ipv4 = next_ipv4(other_peers)
+    peer_ipv6 = next_ipv6(other_peers)
+
+    if peer_ipv6 is None:
+        peer_allowedips = f"{peer_ipv4}/32"
+    else:
+        peer_allowedips = f"{peer_ipv4}/32, {peer_ipv6}/128"
+
+    peer_conf_filename = \
+        f"{PEER_CONF_DIR}/peer-{peer_ipv4.replace('.', '-')}.conf"
+    with open(peer_conf_filename, "w") as f:
+        f.write(f"""
+{GENMSG}
+[Interface]
+PrivateKey = {peer_privkey}
+Address = {peer_allowedips}
+DNS = 193.110.81.0, 2a0f:fc80::  # dns0.eu
+
+[Peer]
+PublicKey = {server_pubkey}
+PresharedKey = {peer_psk}
+AllowedIPs = 0.0.0.0/0, ::/0  # tunnel both ipv4 and ipv6
+Endpoint = {server_address}:{server_port}  # your wireguard server address and port
+PersistentKeepalive = 25
+""")
+
+    with open(filename, "a") as f:
+        f.write(f"""
+{GENMSG}
+[Peer]
+PublicKey = {peer_pubkey}
+PresharedKey = {peer_psk}
+AllowedIPs = {peer_allowedips}
+""")
+
+    print("all done")
+    print(f"assuming this server's ip is {server_address} and wireguard is "
+          f"running on port {server_port}/udp.")
+    print(f"peer adresses: {peer_allowedips}")
+    print(f"peer config saved to {peer_conf_filename}")
+    print(f"dont forget to")
+    print(f"    systemctl restart wg-quick@{IFNAME}")
 
 
 if __name__ == "__main__":
